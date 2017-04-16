@@ -51,7 +51,7 @@ class ModuleScale:
         while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
         if len(echo) != 1: raise NameError('Unable to read value!')
         retval = echo[0]
-        self.logger.debug('Received ' + retval)
+        self.logger.debug('Received <' + retval + '>')
         #write(retval)
         if ' ' in retval: retval = retval[0:(retval.rfind(' '))]
         if retval.replace(' ', '' ) == '-': retval = echo[0]

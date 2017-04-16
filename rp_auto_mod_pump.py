@@ -68,15 +68,19 @@ class ModulePump:
         #write( '<DONE>\n' )
 
     def GetPumpState( self ):
+        self.logger.debug('Getting pump status...')
         retval = self._send_cmd('rm 114')
+        self.logger.debug('Received <' + retval[1] + '>')
         if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
         return retval[1] == '01'
     
     def GetPumpLevel( self ):
+        self.logger.debug('Getting LN2 level from pump...')
         retval = self._send_cmd('rm 0ce 1')
+        self.logger.debug('Received <' + retval[1] + '>')
         if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
         level = (int(retval[1], 16) - 38)*0.542888/0.808    # 38 is a fixed offset, taken from the pump EEprom
-        self.logger.debug('Dewar level: ' + str(level))
+        self.logger.debug('Converted value to ' + str(level))
         return level
     
     def _on_exit( self ):

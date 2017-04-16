@@ -47,7 +47,7 @@ class ModuleMMeter:
         except:
             pass
         echo = bytearray(self._prt.readline())
-        self.logger.debug('Received ' + str(echo))
+        self.logger.debug('Received <' + str(echo).strip() + '>')
         # parse the reading
         retval=parseReading(echo)
         # check overload, units
@@ -58,7 +58,7 @@ class ModuleMMeter:
             self.logger.warning('Multimeter not in ' + self.OutUnit + ' mode')
             return float("nan")
         # if everything is ok, return the value
-        self.logger.debug('Converted value to ' + str(retval["value"]) + ' ' + self.OutUnit)
+        self.logger.debug('Converted value to ' + str(retval["value"]))
         return retval["value"]
         
     def _on_exit( self ):

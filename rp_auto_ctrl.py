@@ -66,12 +66,12 @@ class _runtime:
                     self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
                     self.pump.StartPump()
                     self.lastcheck = datetime.datetime.now()
-                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + ' cm, getter pump voltage is ' + str(self.value_mmeter) + ' V.')    # send sms to G. Weber, M. Vockert
+                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + ' cm, getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send sms to G. Weber, M. Vockert
             elif self.value_scale >= 0.06:
                 if self.value_pump:
                     self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                     self.pump.StopPump()
-                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' V.')
+                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
             time.sleep(1.0)
 
     def _gather_data( self ):
