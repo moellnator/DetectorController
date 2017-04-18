@@ -48,8 +48,16 @@ class ModuleMMeter:
             pass
         echo = bytearray(self._prt.readline())
         self.logger.debug('Received <' + str(echo).strip() + '>')
+        # check correct length
+        if len(echo) != 11:
+            self.logger.warning('Wrong data size received: expected 11, got ' + str(len(echo)))
+            return float("nan")
         # parse the reading
-        retval=parseReading(echo)
+        try:
+            retval = parseReading(echo)
+        except Exception as err:
+            self.logger.warning('Failed to convert input to number: ' + str(err))
+            return float("nan")
         # check overload, units
         if retval["overload"]: 
             self.logger.warning('Multimeter overload')
