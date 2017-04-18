@@ -44,22 +44,26 @@ class ModuleScale:
         self.logger.debug('Getting value from scale...')
         #write('### ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + '# Getting value from scale... ') 
         #sys.stdout.flush()    # \ch: force update of output buffer, otherwise teed log isn't displayed simultaneously
-        cmd = 'w'
-        self._prt.write(cmd)
-        time.sleep(0.5)
-        echo = []
-        while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
-        if len(echo) != 1: raise NameError('Unable to read value!')
-        retval = echo[0]
-        self.logger.debug('Received <' + retval + '>')
-        #write(retval)
-        if ' ' in retval: retval = retval[0:(retval.rfind(' '))]
-        if retval.replace(' ', '' ) == '-': retval = echo[0]
-        retval = retval.replace(' ', '')
-        self.logger.debug('Converted value to ' + retval)
-        #write('<' + retval + '>')
-        #write('<DONE>\n')
-        return float(retval)
+        try:
+            cmd = 'w'
+            self._prt.write(cmd)
+            time.sleep(0.5)
+            echo = []
+            while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
+            if len(echo) != 1: raise NameError('Unable to read value!')
+            retval = echo[0]
+            self.logger.debug('Received <' + retval + '>')
+            #write(retval)
+            if ' ' in retval: retval = retval[0:(retval.rfind(' '))]
+            if retval.replace(' ', '' ) == '-': retval = echo[0]
+            retval = retval.replace(' ', '')
+            self.logger.debug('Converted value to ' + retval)
+            #write('<' + retval + '>')
+            #write('<DONE>\n')
+            return float(retval)
+        except Exception as err:
+            self.logger.warning('Error getting value from scale: ' + str(err))
+            return float("nan")
         
     def _on_exit( self ):
         self.logger.debug('Closing port [' + self._prt.port + ']')

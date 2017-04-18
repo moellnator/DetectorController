@@ -29,7 +29,7 @@ class _runtime:
         # get config options from file
         self.config = _config('rp_auto_setup')
         # \ch: set up the logging system before everything else, so stuff can log its initialization
-        self.logopts=self.config.GetSetup('logging')
+        self.logopts = self.config.GetSetup('logging')
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.setLevel(logging.DEBUG)
         logFormatter = logging.Formatter("%(asctime)s %(levelname)-5.5s: [%(module)-18.18s] %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
@@ -47,27 +47,41 @@ class _runtime:
         self.server = ModuleServer(**self.config.GetSetup('server'))
         self.mmeter = ModuleMMeter(**self.config.GetSetup('mmeter'))
         self.server.GatherModuleData = self._gather_data
+        # get other parameters
+        self.runparams = self.config.GetSetup('runparams')
+        # process parameters
+        self.lnlevel2fillings = float(self.runparams["dewarvolume"])/float(self.runparams["dewarheight"])*0.808/(float(self.runparams["maxweight"])-float(self.runparams["minweight"])) # scale ln2 level to total dewar volume, convert that to kg's (LN2 density is 0.808) and divide by "weight per pumping process"
+        # initialize some other stuff
+        self.docleanexit = False
+        self.modem.RegisterExitCallback(self._sms_exitcallback)
+        
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
         self.logger.info('LN2 control started')
         while True:
             # \ch: offer a way to gracefully shut the program down
-            if os.path.isfile('rp_auto_quit'):
-                self.logger.info('Shutdown indicator file ' + 'rp_auto_quit' + ' found, terminating...')
-                os.remove('rp_auto_quit') # remove indicator file
+            if os.path.isfile(self.runparams["quitfile"]):
+                self.logger.info('Shutdown indicator file ' + self.runparams["quitfile"] + ' found, terminating...')
+                self.docleanexit = True
+                os.rename(self.runparams["quitfile"], self.runparams["quitfile"] + '_bak') # rename indicator file
                 break
             self.value_mmeter = self.mmeter.GetValue()
             self.value_scale = self.scale.GetValue()
             self.value_pump = self.pump.GetPumpState()
             self.level_pump = self.pump.GetPumpLevel()
-            if self.value_scale <= -4.0:
+            if self.value_scale <= float(self.runparams["minweight"]):
                 if not self.value_pump:
                     self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
                     self.pump.StartPump()
                     self.lastcheck = datetime.datetime.now()
-                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + ' cm, getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send sms to G. Weber, M. Vockert
-            elif self.value_scale >= 0.06:
+                    
+                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
+                    ': Scale value is ' + str(self.value_scale) + \
+                    ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
+                    ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
+                    ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send sms to G. Weber, M. Vockert
+            elif self.value_scale >= float(self.runparams["maxweight"]):
                 if self.value_pump:
                     self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                     self.pump.StopPump()
@@ -76,6 +90,10 @@ class _runtime:
 
     def _gather_data( self ):
         return 'OK' + '\t' + str(self.value_scale) + '\t' + str(self.value_pump) + '\t' + str(self.level_pump) + '\t' + str(self.value_mmeter) + '\t' + str(self.lastcheck)
+        
+    def _sms_exitcallback( self ):
+        if not self.docleanexit:
+            self.modem.SendSMS(self.logopts['address'], 'DANGER! DANGER! Unexpected LN2 control function abort in progress! Seek shelter immediately!')
 
 def main( ):
     rt = _runtime()

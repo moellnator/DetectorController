@@ -76,12 +76,16 @@ class ModulePump:
     
     def GetPumpLevel( self ):
         self.logger.debug('Getting LN2 level from pump...')
-        retval = self._send_cmd('rm 0ce 1')
-        self.logger.debug('Received <' + retval[1] + '>')
-        if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
-        level = (int(retval[1], 16) - 38)*0.542888/0.808    # 38 is a fixed offset, taken from the pump EEprom
-        self.logger.debug('Converted value to ' + str(level))
-        return level
+        try: 
+            retval = self._send_cmd('rm 0ce 1')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
+            level = (int(retval[1], 16) - 38)*0.542888/0.808    # 38 is a fixed offset, taken from the pump EEprom
+            self.logger.debug('Converted value to ' + str(level))
+            return level
+        except Exception as err:
+            self.logger.warning('Error getting pump level: ' + str(err))
+            return float("nan")
     
     def _on_exit( self ):
         self.logger.debug('Closing port [' + self.__tty + ']')

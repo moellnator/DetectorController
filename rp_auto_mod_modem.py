@@ -19,6 +19,7 @@ class ModuleModem:
         self._check_device()
         self._check_pin(pin)
         self._check_network()
+        self.exitcallback = None
         self.logger.info('WAVECOM modem initialization complete')
         #write('<DONE>\n')
 
@@ -135,7 +136,11 @@ class ModuleModem:
                 #write('<FAILED>\n')
                 return False   
         
+    def RegisterExitCallback( self, f):
+        self.exitcallback = f
+        
     def _on_exit( self ):
+        if self.exitcallback: self.exitcallback()
         self.logger.debug('Closing port [' + self._prt.port +']')
         #write( '** Closing port [' + self._prt.port + ']\n' ) 
         self._prt.close()
