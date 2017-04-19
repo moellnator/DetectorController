@@ -50,10 +50,20 @@ class _runtime:
         # get other parameters
         self.runparams = self.config.GetSetup('runparams')
         # process parameters
-        self.lnlevel2fillings = float(self.runparams["dewarvolume"])/float(self.runparams["dewarheight"])*0.808/(float(self.runparams["maxweight"])-float(self.runparams["minweight"])) # scale ln2 level to total dewar volume, convert that to kg's (LN2 density is 0.808) and divide by "weight per pumping process"
+        try:
+            self.lnlevel2fillings = float(self.runparams["dewarvolume"])/float(self.runparams["dewarheight"])*0.808/(float(self.runparams["maxweight"])-float(self.runparams["minweight"])) # scale ln2 level to total dewar volume, convert that to kg's (LN2 density is 0.808) and divide by "weight per pumping process"
+        except Exception as err:
+            self.logger.warning('Could not determine level-to-fillings conversion factor, setting it to 1: ' + str(err))
+            self.lnlevel2fillings = 1.0
         # initialize some other stuff
         self.docleanexit = False
         self.modem.RegisterExitCallback(self._sms_exitcallback)
+        try:
+            self.pollinterval = float(self.runparams["pollinterval"])
+            if self.pollinterval<1.0: raise NameError('pollinterval has to be at least 1.0s')
+        except Exception as err:
+            self.logger.warning('Could not set polling interval, setting it to 1s: ' + str(err))
+            self.pollinterval = 1.0
         
     
     def _run( self ):
@@ -86,7 +96,7 @@ class _runtime:
                     self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                     self.pump.StopPump()
                     self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
-            time.sleep(1.0)
+            time.sleep(self.pollinterval)
 
     def _gather_data( self ):
         return 'OK' + '\t' + str(self.value_scale) + '\t' + str(self.value_pump) + '\t' + str(self.level_pump) + '\t' + str(self.value_mmeter) + '\t' + str(self.lastcheck)
