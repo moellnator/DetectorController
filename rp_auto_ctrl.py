@@ -57,19 +57,29 @@ class _runtime:
             self.logger.warning('Could not determine level-to-fillings conversion factor, setting it to 1: ' + str(err))
             self.lnlevel2fillings = 1.0
         # initialize some other stuff
-        self.docleanexit = False
+        self.docleanexit = False   # is queried to determine whether shutdown is intentional (i.e. user-initiated). Else, logopts["address"] is notified
         self.modem.RegisterExitCallback(self._sms_exitcallback)
         try:
             self.pollinterval = float(self.runparams["pollinterval"])
-            if self.pollinterval<1.0: raise NameError('pollinterval has to be at least 1.0s')
+            if self.pollinterval<1.0:
+                self.logger.warning('pollinterval has to be at least 1.0 s')
+                self.pollinterval = 1.0
         except Exception as err:
-            self.logger.warning('Could not set polling interval, setting it to 1s: ' + str(err))
+            self.logger.warning('Could not set polling interval, setting it to 1.0 s: ' + str(err))
             self.pollinterval = 1.0
-        
+        try:
+            self.pollintwhilepumping = float(self.runparams["pollintwhilepumping"])
+            if self.pollintwhilepumping<1.0: 
+                self.logger.warning('pollintwhilepumping has to be at least 1.0 s')
+                self.pollintwhilepumping = 1.0
+        except Exception as err:
+            self.logger.warning('Could not set pump polling interval, setting it to ' +  "{:.1f}".format(self.pollinterval) + ' s: ' + str(err))
+            self.pollintwhilepumping = self.pollinterval
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
         self.logger.info('LN2 control started')
+        polltime = self.pollinterval
         while True:
             # \ch: offer a way to gracefully shut the program down
             if os.path.isfile(self.runparams["quitfile"]):
@@ -86,18 +96,20 @@ class _runtime:
                     self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
                     self.pump.StartPump()
                     self.lastcheck = datetime.datetime.now()
+                    polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                     
                     self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
                     ': Scale value is ' + str(self.value_scale) + \
                     ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
                     ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
-                    ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send sms to G. Weber, M. Vockert
+                    ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send notification
             elif self.value_scale >= float(self.runparams["maxweight"]):
                 if self.value_pump:
                     self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                     self.pump.StopPump()
+                    polltime = self.pollinterval # reset polltime
                     self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
-            time.sleep(self.pollinterval)
+            time.sleep(polltime)
 
     def _gather_data( self ):
         return 'OK' + '\t' + str(self.value_scale) + '\t' + str(self.value_pump) + '\t' + str(self.level_pump) + '\t' + str(self.value_mmeter) + '\t' + str(self.lastcheck)
