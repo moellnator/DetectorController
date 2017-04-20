@@ -115,6 +115,9 @@ class ModuleModem:
             addresslist = address.split(',')
             for x in addresslist: self.SendSMS(x, msg)
         else:
+            if not address:    # i.e., address is empty
+                self.logger.info('No recipient address defined')
+                return False
             self.logger.info('Sending short mail to [' + address + ']... ')
             self.logger.debug('Mail content: ' + msg)
             #write('### Sending short mail to [' + address + ']... ')
