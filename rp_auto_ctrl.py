@@ -17,7 +17,8 @@ class _config:
     _setting = None
     
     def __init__( self, path ):
-        self._setting = ConfigParser.ConfigParser()   
+        self._setting = ConfigParser.ConfigParser()
+        self._setting.read('rp_auto_default.ini')   # initialize settings structure with defaults
         self._setting.read(path + '.ini')
         
     def GetSetup( self, name ):
