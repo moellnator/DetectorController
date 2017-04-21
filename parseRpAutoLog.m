@@ -28,15 +28,17 @@ function Log = parseRpAutoLog(fpath)
     
     try %#ok<TRYNC> ; use try block to return partial Log, in case something goes wrong
         fprintf('Extracting date information... ')
-        FieldDate=datenum({Log.date},'yyyy-mm-dd hh:MM:SS'); % convert date string to MATLAB-readable date number
-        [Log.date]=deal(FieldDate(:));
+        FieldDate=num2cell(datenum({Log.date},'yyyy-mm-dd hh:MM:SS')); % convert date string to MATLAB-readable date number. Create cell array for deal() function
+        [Log.date]=deal(FieldDate{:});
         fprintf('done\n');
         fprintf('Attempting to convert numeric values... ')
         FieldValue=str2double(cellfun(@(x,y) x(y:end),{Log.message},regexp({Log.message},'\S+$'),'UniformOutput',false)); % try converting the last word of message to a numeric value
-        [Log.value]=deal(FieldValue(:));
         FieldHasvalue=~isnan(FieldValue); % indicate lines where str2double() failed, returning NaN
-        [Log.hasvalue]=deal(FieldHasvalue(:));
         fprintf('done, %d values recovered\n',nnz(FieldHasvalue));
+        FieldValue=num2cell(FieldValue);
+        FieldHasvalue=num2cell(FieldHasvalue);
+        [Log.value]=deal(FieldValue{:});
+        [Log.hasvalue]=deal(FieldHasvalue{:});
         [Log.rawmsg]=deal(C{:}); % include raw, unparsed message
     end
     
