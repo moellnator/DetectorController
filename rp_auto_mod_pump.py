@@ -45,7 +45,7 @@ class ModulePump:
         self.logger.debug('Checking device...')
         #write( '   Checking device... ' )
         retval = self._send_cmd('i')
-        if not retval[5] == 'Ready': raise NameError('Unknown device connected!')
+        if len(retval)<5 or not retval[5] == 'Ready': raise NameError('Unknown device connected!')
         self.logger.debug('Received answer <' + retval[1][9:] + '>')
         self.logger.debug('Device check complete')
         #write( '<' + retval[1][9:] + '>' )
