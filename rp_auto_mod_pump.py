@@ -16,7 +16,7 @@ class ModulePump:
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing LN2 pump...')
         #write('Initializing LN2 pump:\n')
-        self._prt = self._open_port(tty)
+        self._prt = self._open_port('/dev/' + tty)
         self.__tty = tty
         self._check_pump()
         self.logger.info('Successfully initialized LN2 pump')
@@ -25,21 +25,38 @@ class ModulePump:
     def _open_port( self, tty ):
         self.logger.debug('Opening port [' + tty + ']...')
         #write( '   Opening port [' + tty + ']... ' )
-        retval = os.open('/dev/' + tty, os.O_RDWR | os.O_NONBLOCK)
-        attr = termios.tcgetattr(retval)
-        attr[2] = 48
-        attr[4] = termios.B19200
-        attr[5] = termios.B19200
-        termios.tcsetattr(retval, termios.TCSADRAIN, attr)
+        retval = serial.Serial( 
+            port = tty,
+            baudrate = 19200,
+            bytesize = serial.EIGHTBITS,
+            parity = serial.PARITY_NONE,
+            stopbits = serial.STOPBITS_ONE,
+            timeout = 1,
+            xonxoff = False,
+            rtscts = False,
+            dsrdtr = False
+        )
+        #retval = os.open('/dev/' + tty, os.O_RDWR | os.O_NONBLOCK)
+        #attr = termios.tcgetattr(retval)
+        #attr[2] = 48
+        #attr[4] = termios.B19200
+        #attr[5] = termios.B19200
+        #termios.tcsetattr(retval, termios.TCSADRAIN, attr)
         atexit.register( self._on_exit)
         self.logger.debug('Successfully opened port')
         #write( '<DONE>\n' )    
         return retval  
 
     def _send_cmd( self, cmd ):
-        os.write(self._prt, cmd + '\x0d')
-        time.sleep(0.4)
-        return os.read(self._prt, 1024).split('\r\n')
+        self._prt.write(cmd + '\x0d')
+        time.sleep(0.5)
+        echo = []
+        while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
+        return echo
+        
+        #os.write(self._prt, cmd + '\x0d')
+        #time.sleep(0.4)
+        #return os.read(self._prt, 1024).split('\r\n')
 
     def _check_pump( self ):
         self.logger.debug('Checking device...')
