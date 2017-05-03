@@ -1,7 +1,7 @@
 ﻿import atexit
 import time
 import sys
-import termios
+import serial
 import os
 import logging
 
@@ -36,12 +36,6 @@ class ModulePump:
             rtscts = False,
             dsrdtr = False
         )
-        #retval = os.open('/dev/' + tty, os.O_RDWR | os.O_NONBLOCK)
-        #attr = termios.tcgetattr(retval)
-        #attr[2] = 48
-        #attr[4] = termios.B19200
-        #attr[5] = termios.B19200
-        #termios.tcsetattr(retval, termios.TCSADRAIN, attr)
         atexit.register( self._on_exit)
         self.logger.debug('Successfully opened port')
         #write( '<DONE>\n' )    
@@ -53,10 +47,6 @@ class ModulePump:
         echo = []
         while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
         return echo
-        
-        #os.write(self._prt, cmd + '\x0d')
-        #time.sleep(0.4)
-        #return os.read(self._prt, 1024).split('\r\n')
 
     def _check_pump( self ):
         self.logger.debug('Checking device...')
@@ -107,4 +97,4 @@ class ModulePump:
     def _on_exit( self ):
         self.logger.debug('Closing port [' + self.__tty + ']')
         #write( '** Closing port [' + self.__tty + ']\n' ) 
-        os.close(self._prt) 
+        self._prt.close()
