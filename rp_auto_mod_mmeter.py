@@ -70,8 +70,13 @@ class ModuleMMeter:
             echo = bytearray(self._prt.readline().strip())
         else:
             time.sleep(1) # wait a bit for the next transmission to arrive
-            echo = os.read(self._prt,22)
-            echo = bytearray(re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo).group(1)) # record length is 11 -- read enough that complete record is safely included, then extract part between last '\r\n' and the one before that. group(1) contains the match from the parenthesis expression
+            echo = os.read(self._prt,22) # record length is 11 -- read enough that complete record is safely included
+            m = re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo) # extract part between last '\r\n' and the one before that. 
+            if m:
+                echo = bytearray(m.group(1)) # group(1) contains the match from the parenthesis expression
+            else:
+                self.logger.warning('Unexpected record structure found: ' + echo)
+                return float("nan")
             
         self.logger.debug('Received <' + str(echo).strip() + '>')
         # check correct length
