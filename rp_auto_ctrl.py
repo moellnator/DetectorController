@@ -34,7 +34,7 @@ class _runtime:
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.setLevel(logging.DEBUG)
         logFormatter = logging.Formatter("%(asctime)s %(levelname)-5.5s: [%(module)-18.18s] %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
-        logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=7)   # \ch: output to log file, new file is created for every day, files are retained for 7 days
+        logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=int(self.logopts['keeplogs']))   # \ch: output to log file, new file is created for every day, files are retained for 31 days
         logFileHandler.setFormatter(logFormatter)
         self.logger.addHandler(logFileHandler)
         logStreamHandler = logging.StreamHandler(sys.stdout)   # \ch: also output log to stdout
