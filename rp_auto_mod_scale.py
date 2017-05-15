@@ -33,7 +33,7 @@ class ModuleScale:
             rtscts = False,
             dsrdtr = False
         )
-        if not retval.isOpen: retval.open()
+        if not retval.isOpen(): retval.open()
         while retval.inWaiting() > 0: retval.read(self._prt.inWaiting())
         atexit.register(self._on_exit)
         self.logger.debug('Successfully opened port')
