@@ -1,4 +1,7 @@
 import serial
+import os
+import termios
+import re
 import atexit
 import time
 import sys
@@ -21,19 +24,36 @@ class ModuleMMeter:
     def _open_port( self, tty ):
         self.logger.debug('Opening port ' + tty)
         #write( '   Opening port [' + tty + ']... ' )
-        retval = serial.Serial( 
-            port = tty,
-            baudrate = 19200,
-            bytesize = serial.SEVENBITS,
-            parity = serial.PARITY_NONE,
-            stopbits = serial.STOPBITS_ONE,
-            timeout = 1,
-            xonxoff = False,
-            rtscts = False,
-            dsrdtr = False
-        )
-        if not retval.isOpen: retval.open()
-        retval.flushInput() # purge input buffer, since device writes continuously to buffer
+        try:
+            retval = serial.Serial( 
+                port = tty,
+                baudrate = 19200,
+                bytesize = serial.SEVENBITS,
+                parity = serial.PARITY_NONE,
+                stopbits = serial.STOPBITS_ONE,
+                timeout = 1,
+                xonxoff = False,
+                rtscts = False,
+                dsrdtr = False
+            )
+            if not retval.isOpen: retval.open()
+            retval.flushInput() # purge input buffer, since device writes continuously to buffer
+            time.sleep(1) # wait 1 second, then check whether device is sending stuff
+            if not retval.inWaiting() or len(retval.readline().strip()) != 9: raise NameError('Unable to contact device')
+        except Exception as err:
+            if str(err) == 'Unable to contact device':
+                # try termios implementation
+                self.logger.info('PySerial linkup failed, switching to TermIOS')
+                retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
+                attr = termios.tcgetattr(retval)
+                attr[2] = (termios.CS7 | termios.PARODD) # sevenbit, no parity; "one stopbit" is default
+                attr[4] = termios.B19200
+                attr[5] = termios.B19200
+                termios.tcsetattr(retval, termios.TCSADRAIN, attr)
+                termios.tcflush(retval, termios.TCIFLUSH)
+            else:
+                raise  # re-raise error
+            
         atexit.register(self._on_exit)
         self.logger.debug('Successfully opened port')
         #write( '<DONE>\n' )    
@@ -41,15 +61,21 @@ class ModuleMMeter:
 
     def GetValue( self ):
         self.logger.debug('Getting value from multimeter...')
-        # clear input buffer, then get reading from byte stream -- delimited by b1101 b1010
-        try:
-            self._prt.read(self._prt.inWaiting())
-        except:
-            pass
-        echo = bytearray(self._prt.readline())
+        if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
+            # clear input buffer, then get reading from byte stream -- delimited by b1101 b1010
+            try:
+                self._prt.read(self._prt.inWaiting())
+            except:
+                pass
+            echo = bytearray(self._prt.readline().strip())
+        else:
+            time.sleep(1) # wait a bit for the next transmission to arrive
+            echo = os.read(self._prt,22)
+            echo = bytearray(re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo).group(1)) # record length is 11 -- read enough that complete record is safely included, then extract part between last '\r\n' and the one before that. group(1) contains the match from the parenthesis expression
+            
         self.logger.debug('Received <' + str(echo).strip() + '>')
         # check correct length
-        if len(echo) != 11:
+        if len(echo) != 9:
             self.logger.warning('Wrong data size received: expected 11, got ' + str(len(echo)))
             return float("nan")
         # parse the reading
@@ -70,12 +96,16 @@ class ModuleMMeter:
         return retval["value"]
         
     def _on_exit( self ):
-        self.logger.debug('Closing port [' + self._prt.port + ']')
         #write( '** Closing port [' + self._prt.port + ']\n' ) 
-        self._prt.close()
+        if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
+            self.logger.debug('Closing port [' + self._prt.port + ']')
+            self._prt.close()
+        else:
+            self.logger.debug('Closing multimeter port')
+            os.close(self._prt)
         
 def parseReading(byte_array):
-    # takes a 11-byte input array and extracts the actual instrument reading
+    # takes a 9-byte input array and extracts the actual instrument reading
     # check for overload
     overload = 0b0001 & byte_array[6] # get overload flag from byte 6 through bitmask
     # read number
