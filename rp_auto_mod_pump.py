@@ -3,6 +3,7 @@ import time
 import sys
 import termios
 import os
+import serial
 import logging
 
 def write( str ):
