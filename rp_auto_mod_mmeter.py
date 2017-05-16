@@ -47,7 +47,7 @@ class ModuleMMeter:
                 self.logger.info('PySerial linkup failed, switching to TermIOS')
                 retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
                 attr = termios.tcgetattr(retval)
-                attr[2] = (termios.CS7 | termios.PARODD) # sevenbit, no parity; "one stopbit" is default
+                attr[2] = termios.CS7 # sevenbit, no parity, one stopbit
                 attr[4] = termios.B19200
                 attr[5] = termios.B19200
                 termios.tcsetattr(retval, termios.TCSADRAIN, attr)
