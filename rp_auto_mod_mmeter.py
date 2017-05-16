@@ -17,6 +17,7 @@ class ModuleMMeter:
     def __init__( self, port, outunit='V' ):
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing multimeter...')
+        self.__tty = port
         self._prt = self._open_port('/dev/' + port)
         self.OutUnit = outunit
         self.logger.info('Multimeter initialization complete')
@@ -102,11 +103,10 @@ class ModuleMMeter:
         
     def _on_exit( self ):
         #write( '** Closing port [' + self._prt.port + ']\n' ) 
+        self.logger.debug('Closing port [' + self.__tty + ']')
         if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
-            self.logger.debug('Closing port [' + self._prt.port + ']')
             self._prt.close()
         else:
-            self.logger.debug('Closing multimeter port')
             os.close(self._prt)
         
 def parseReading(byte_array):
