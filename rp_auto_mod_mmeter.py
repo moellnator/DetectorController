@@ -72,7 +72,7 @@ class ModuleMMeter:
         else:
             time.sleep(1) # wait a bit for the next transmission to arrive
             echo = os.read(self._prt,22) # record length is 11 -- read enough that complete record is safely included
-            m = re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo) # extract part between last '\r\n' and the one before that. 
+            m = re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo,re.DOTALL) # extract part between last '\r\n' and the one before that. 
             if m:
                 echo = bytearray(m.group(1)) # group(1) contains the match from the parenthesis expression
             else:
