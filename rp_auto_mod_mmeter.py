@@ -21,7 +21,7 @@ class ModuleMMeter:
         try:
             self._prt = self._open_port('/dev/' + port, 'P') # try PySerial first
             time.sleep(1)
-            if not self._prt.inWaiting() or len(self._prt.readline().strip()) != 9: raise NameError('Unable to contact device')
+            if self._prt.inWaiting()<11 or not '\n' in self._prt.read(self._prt.inWaiting()): raise NameError('Unable to contact device')
         except Exception as err:
             try:
                 self._prt.close() # make sure that partially-opened port is closed before overwriting the property
