@@ -18,14 +18,34 @@ class ModuleMMeter:
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing multimeter...')
         self.__tty = port
-        self._prt = self._open_port('/dev/' + port)
+        try:
+            self._prt = self._open_port('/dev/' + port, 'P') # try PySerial first
+            time.sleep(1)
+            if not self._prt.inWaiting() or len(self._prt.readline().strip()) != 9: raise NameError('Unable to contact device')
+        except Exception as err:
+            try:
+                self._prt.close() # make sure that partially-opened port is closed before overwriting the property
+            except:
+                pass
+            self.logger.info('PySerial linkup failed, switching to TermIOS: ' + str(err))
+            
+            self._prt = self._open_port('/dev/' + port, 'T') # use termios implementation
+            
         self.OutUnit = outunit
         self.logger.info('Multimeter initialization complete')
 
-    def _open_port( self, tty ):
-        self.logger.debug('Opening port ' + tty)
-        #write( '   Opening port [' + tty + ']... ' )
-        try:
+    def _open_port( self, tty, mode = 'P' ):      # mode='P' for PySerial, 'T' for TermIOS
+        if mode == 'T':
+            self.logger.debug('Opening port [' + tty + '] via TermIOS...')
+            retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
+            attr = termios.tcgetattr(retval)
+            attr[2] = termios.CS7 # sevenbit, no parity, one stopbit
+            attr[4] = termios.B19200
+            attr[5] = termios.B19200
+            termios.tcsetattr(retval, termios.TCSADRAIN, attr)
+            termios.tcflush(retval, termios.TCIFLUSH)
+        else: 
+            self.logger.debug('Opening port [' + tty + '] via PySerial...')
             retval = serial.Serial( 
                 port = tty,
                 baudrate = 19200,
@@ -39,21 +59,6 @@ class ModuleMMeter:
             )
             if not retval.isOpen: retval.open()
             retval.flushInput() # purge input buffer, since device writes continuously to buffer
-            time.sleep(1) # wait 1 second, then check whether device is sending stuff
-            if not retval.inWaiting() or len(retval.readline().strip()) != 9: raise NameError('Unable to contact device')
-        except Exception as err:
-            if str(err) == 'Unable to contact device':
-                # try termios implementation
-                self.logger.info('PySerial linkup failed, switching to TermIOS')
-                retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
-                attr = termios.tcgetattr(retval)
-                attr[2] = termios.CS7 # sevenbit, no parity, one stopbit
-                attr[4] = termios.B19200
-                attr[5] = termios.B19200
-                termios.tcsetattr(retval, termios.TCSADRAIN, attr)
-                termios.tcflush(retval, termios.TCIFLUSH)
-            else:
-                raise  # re-raise error
             
         atexit.register(self._on_exit)
         self.logger.debug('Successfully opened port')
@@ -103,11 +108,14 @@ class ModuleMMeter:
         
     def _on_exit( self ):
         #write( '** Closing port [' + self._prt.port + ']\n' ) 
-        self.logger.debug('Closing port [' + self.__tty + ']')
-        if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
-            self._prt.close()
-        else:
-            os.close(self._prt)
+        self.logger.debug('Closing port [/dev/' + self.__tty + ']')
+        try:
+            if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
+                self._prt.close()
+            else:
+                os.close(self._prt)
+        except OSError:     # if _port_open was executed more than once (because the first call actually did not provide a usable port), _on_exit will try to close the self._prt more than once
+            pass
         
 def parseReading(byte_array):
     # takes a 9-byte input array and extracts the actual instrument reading
