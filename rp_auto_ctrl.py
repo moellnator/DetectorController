@@ -34,7 +34,7 @@ class _runtime:
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.setLevel(logging.DEBUG)
         logFormatter = logging.Formatter("%(asctime)s %(levelname)-5.5s: [%(module)-18.18s] %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
-        logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=7)   # \ch: output to log file, new file is created for every day, files are retained for 7 days
+        logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=int(self.logopts['keeplogs']))   # \ch: output to log file, new file is created for every day, files are retained for 31 days
         logFileHandler.setFormatter(logFormatter)
         self.logger.addHandler(logFileHandler)
         logStreamHandler = logging.StreamHandler(sys.stdout)   # \ch: also output log to stdout
@@ -91,6 +91,7 @@ class _runtime:
             self.value_scale = self.scale.GetValue()
             self.value_pump = self.pump.GetPumpState()
             self.level_pump = self.pump.GetPumpLevel()
+            # toggle pump if necessary
             if self.value_scale <= float(self.runparams["minweight"]):
                 if not self.value_pump:
                     self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
@@ -109,6 +110,12 @@ class _runtime:
                     self.pump.StopPump()
                     polltime = self.pollinterval # reset polltime
                     self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
+            # check getter pump voltage
+            if abs(self.value_mmeter)>float(self.runparams["maxgettervolt"]):
+                self.logger.warning('Getter pump voltage above maximum level (' + self.runparams["maxgettervolt"] + '): ' + str(self.value_mmeter))
+                self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
+                ': Excessive getter pump voltage, is ' + str(self.value_mmeter) + \
+                ', should be less than ' + self.runparams["maxgettervolt"])
             time.sleep(polltime)
 
     def _gather_data( self ):
@@ -116,7 +123,7 @@ class _runtime:
         
     def _sms_exitcallback( self ):
         if not self.docleanexit:
-            self.modem.SendSMS(self.logopts['address'], 'DANGER! DANGER! Unexpected LN2 control function abort in progress! Seek shelter immediately!')
+            self.modem.SendSMS(self.logopts['address'], 'Unexpected LN2 control function abort in progress')
 
 def main( ):
     rt = _runtime()

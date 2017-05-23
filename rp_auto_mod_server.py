@@ -36,7 +36,9 @@ class ModuleServer:
         while True:
             try:
                 conn, addr = self._sock.accept()
+                self.logger.debug('Accepted connection from ' + str(addr))
                 data = conn.recv(self.BUFFER_SIZE).strip()
+                self.logger.debug('Received command string ' + data)
                 if data == 'SVR:HELLO':
                     conn.send('CNT:HELLO=RP_AUTO_SERVER_V1.0\r\n')
                 elif data == 'SVR:DATA':
@@ -46,6 +48,7 @@ class ModuleServer:
                 else:
                     conn.send('CNT:ERROR=UNKNOWN_CMD\r\n')
                 conn.close()
+                self.logger.debug('Closing connection to ' + str(addr))
             except Exception as err:    # when rp_auto_ctrl finishes, this thread will try to still use _sock -- catch that
                 self.logger.warning('Terminating thread because of an error: ' + str(err))
                 break

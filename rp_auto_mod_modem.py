@@ -122,6 +122,7 @@ class ModuleModem:
             self.logger.debug('Mail content: ' + msg)
             #write('### Sending short mail to [' + address + ']... ')
             echo = self._send_cmd('+CMGS="' + address + '"')
+            self.logger.debug('Modem returned <' + '><'.join(echo) + '>')
             if not ( len(echo) == 2 and echo[1] == '>' ): raise NameError('Invalid return value!')
             self._prt.write(msg + chr(26))
             time.sleep(0.2)
