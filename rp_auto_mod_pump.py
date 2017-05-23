@@ -3,6 +3,7 @@ import time
 import sys
 import termios
 import os
+import serial
 import logging
 
 def write( str ):
@@ -16,31 +17,66 @@ class ModulePump:
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing LN2 pump...')
         #write('Initializing LN2 pump:\n')
-        self._prt = self._open_port('/dev/' + tty)
         self.__tty = tty
-        self._check_pump()
-        self.logger.info('Successfully initialized LN2 pump')
+        try:
+            self._prt = self._open_port('/dev/' + tty, 'P') # try PySerial protocol first
+            self._check_pump()
+        except Exception as err:
+            try: 
+                self._prt.close() # just to be sure that previous prt does not remain open
+            except:
+                pass
+            self.logger.info('PySerial linkup failed, switching to TermIOS: ' + str(err))
+            
+            self._prt = self._open_port('/dev/' + tty, 'T')
+            self._check_pump()
+        finally:
+            self.logger.info('Successfully initialized LN2 pump')
         #write('<DONE>\n')
 
-    def _open_port( self, tty ):
-        self.logger.debug('Opening port [' + tty + ']...')
+    def _open_port( self, tty, mode = 'P'):     # mode='P' for PySerial implementation, 'T' for TermIOS implementation
         #write( '   Opening port [' + tty + ']... ' )
-        retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
-        attr = termios.tcgetattr(retval)
-        attr[2] = 48
-        attr[4] = termios.B19200
-        attr[5] = termios.B19200
-        termios.tcsetattr(retval, termios.TCSADRAIN, attr)
-        termios.tcflush(retval, termios.TCIFLUSH)   # sometimes the buffer will not be empty on connection, so that replies to commands are appended at the end and not found where expected when read back
+        if mode == 'T':     # termios implementation
+            self.logger.debug('Opening port [' + tty + '] via TermIOS...')
+            retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
+            attr = termios.tcgetattr(retval)
+            attr[2] = termios.CS8 # byte size is 8 bits
+            attr[4] = termios.B19200
+            attr[5] = termios.B19200
+            termios.tcsetattr(retval, termios.TCSADRAIN, attr)
+            termios.tcflush(retval, termios.TCIFLUSH)   # sometimes the buffer will not be empty on connection, so that replies to commands are appended at the end and not found where expected when read back
+        else:       # default PySerial implementation
+            self.logger.debug('Opening port [' + tty + '] via PySerial...')
+            retval = serial.Serial( 
+                port = tty,
+                baudrate = 19200,
+                bytesize = serial.EIGHTBITS,
+                parity = serial.PARITY_NONE,
+                stopbits = serial.STOPBITS_ONE,
+                timeout = 1,
+                xonxoff = False,
+                rtscts = False,
+                dsrdtr = False
+            )
+            if not retval.isOpen: retval.open()
+            retval.flushInput() # purge input buffer, since device writes continuously to buffer
+            
         atexit.register( self._on_exit)
-        self.logger.debug('Successfully opened port')
+        self.logger.debug('Port opened in ' + mode + ' mode')
         #write( '<DONE>\n' )    
-        return retval  
+        return retval
 
     def _send_cmd( self, cmd ):
-        os.write(self._prt, cmd + '\x0d')
-        time.sleep(0.4)
-        return os.read(self._prt, 1024).split('\r\n')
+        if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
+            self._prt.write(cmd)
+            time.sleep(0.4)
+            echo = []
+            while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
+            return echo
+        else:
+            os.write(self._prt, cmd + '\x0d')
+            time.sleep(0.4)
+            return os.read(self._prt, 1024).split('\r\n')
 
     def _check_pump( self ):
         self.logger.debug('Checking device...')
@@ -89,6 +125,12 @@ class ModulePump:
             return float("nan")
     
     def _on_exit( self ):
-        self.logger.debug('Closing port [' + self.__tty + ']')
-        #write( '** Closing port [' + self.__tty + ']\n' ) 
-        os.close(self._prt)
+        self.logger.debug('Closing port [/dev/' + self.__tty + ']')
+        #write( '** Closing port [' + self.__tty + ']\n' )
+        try:
+            if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
+                self._prt.close()
+            else:   # termios implementation
+                os.close(self._prt)
+        except OSError:     # if _port_open was executed more than once (because the first call actually did not provide a usable port), _on_exit will try to close the self._prt more than once
+            pass
