@@ -77,9 +77,9 @@ class ModuleMMeter:
         else:
             time.sleep(1) # wait a bit for the next transmission to arrive
             echo = os.read(self._prt,22) # record length is 11 -- read enough that complete record is safely included
-            m = re.search('^.*\n([^\n]*)\r\n[^\n]*$',echo,re.DOTALL) # extract part between last '\r\n' and the one before that. 
+            m = re.findall('\n([^\r\n]{9})\r',echo) # extract complete records from string reading, into a list of strings
             if m:
-                echo = bytearray(m.group(1)) # group(1) contains the match from the parenthesis expression
+                echo = bytearray(m[len(m)-1]) # return latest record
             else:
                 self.logger.warning('Unexpected record structure found: ' + echo)
                 return float("nan")
