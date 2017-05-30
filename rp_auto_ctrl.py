@@ -11,6 +11,7 @@ from rp_auto_mod_modem import ModuleModem
 from rp_auto_mod_server import ModuleServer
 from rp_auto_mod_pump import ModulePump
 from rp_auto_mod_mmeter import ModuleMMeter
+from rp_auto_smswarning import SmsWarning
 
 class _config:
 
@@ -75,6 +76,8 @@ class _runtime:
         except Exception as err:
             self.logger.warning('Could not set pump polling interval, setting it to ' +  "{:.1f}".format(self.pollinterval) + ' s: ' + str(err))
             self.pollintwhilepumping = self.pollinterval
+        # set up sms warning objects
+        self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
@@ -113,9 +116,8 @@ class _runtime:
             # check getter pump voltage
             if abs(self.value_mmeter)>float(self.runparams["maxgettervolt"]):
                 self.logger.warning('Getter pump voltage above maximum level (' + self.runparams["maxgettervolt"] + '): ' + str(self.value_mmeter))
-                self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
-                ': Excessive getter pump voltage, is ' + str(self.value_mmeter) + \
-                ', should be less than ' + self.runparams["maxgettervolt"])
+                self.WarnGetterV.Emit('Excessive getter pump voltage, is ' + str(self.value_mmeter) + ', should be less than ' + self.runparams["maxgettervolt"])
+
             time.sleep(polltime)
 
     def _gather_data( self ):
