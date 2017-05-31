@@ -77,7 +77,7 @@ class ModuleMMeter:
         else:
             time.sleep(1) # wait a bit for the next transmission to arrive
             echo = os.read(self._prt,22) # record length is 11 -- read enough that complete record is safely included
-            m = re.findall('\n([^\r\n]{9})\r',echo) # extract complete records from string reading, into a list of strings
+            m = re.findall('([^\r\n]{9})\r',echo) # extract complete records from string reading, into a list of strings
             if m:
                 echo = bytearray(m[len(m)-1]) # return latest record
             else:
