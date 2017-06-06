@@ -79,6 +79,7 @@ class _runtime:
         # set up sms warning objects
         self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
         self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
+        self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
@@ -97,21 +98,24 @@ class _runtime:
             self.level_pump = self.pump.GetPumpLevel()
             # toggle pump if necessary
             if self.value_scale <= float(self.runparams["minweight"]):
-                if not self.value_pump:
-                    self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
-                    try:
-                        self.pump.StartPump()
-                    except Exception as err:
-                        self.logger.warning('Unable to start pump: ' + str(err))
-                        self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
-                    self.lastcheck = datetime.datetime.now()
-                    polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
+                if not self.value_pump
+                    if self.level_pump>0:
+                        self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
+                        try:
+                            self.pump.StartPump()
+                        except Exception as err:
+                            self.logger.warning('Unable to start pump: ' + str(err))
+                            self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
+                        self.lastcheck = datetime.datetime.now()
+                        polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                     
-                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
-                    ': Scale value is ' + str(self.value_scale) + \
-                    ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
-                    ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
-                    ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send notification
+                        self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
+                        ': Scale value is ' + str(self.value_scale) + \
+                        ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
+                        ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
+                        ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send notification
+                    else:
+                        self.WarnPumpNoLN2.Emit('Unable to start pump because dewar is empty')
             elif self.value_scale >= float(self.runparams["maxweight"]):
                 if self.value_pump:
                     self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
