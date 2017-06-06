@@ -78,6 +78,7 @@ class _runtime:
             self.pollintwhilepumping = self.pollinterval
         # set up sms warning objects
         self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
+        self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
@@ -98,7 +99,11 @@ class _runtime:
             if self.value_scale <= float(self.runparams["minweight"]):
                 if not self.value_pump:
                     self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
-                    self.pump.StartPump()
+                    try:
+                        self.pump.StartPump()
+                    except Exception as err:
+                        self.logger.warning('Unable to start pump: ' + str(err))
+                        self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
                     self.lastcheck = datetime.datetime.now()
                     polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                     
