@@ -15,7 +15,7 @@ class SmsWarning:
     def __init__( self, name, modem, recipients, time_suppress, time_resolve ):
 
         self.logger = logging.getLogger('rp_auto_ctrl') # tie into the global rp_auto_ctrl logger
-        self.logger.info('Opened issue <' + name + '>.')
+        self.logger.info('Created issue tracker <' + name + '>.')
         self.name = name    # an identifier
         self.modem = modem    # the ModuleModem object
         self.recipients = recipients    # the list of notification recipients, directly passed to modem's SendSMS() method
@@ -60,4 +60,4 @@ class SmsWarning:
         
     def _on_exit( self ):
     
-        self.logger.debug('Closed issue <' + self.name '>.')
+        self.logger.debug('Closed issue <' + self.name + '>.')

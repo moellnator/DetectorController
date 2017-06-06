@@ -98,7 +98,7 @@ class _runtime:
             self.level_pump = self.pump.GetPumpLevel()
             # toggle pump if necessary
             if self.value_scale <= float(self.runparams["minweight"]):
-                if not self.value_pump
+                if not self.value_pump:
                     if self.level_pump>0:
                         self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
                         try:
