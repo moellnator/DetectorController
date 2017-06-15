@@ -79,7 +79,7 @@ class ModuleMMeter:
             echo = os.read(self._prt,22) # record length is 11 -- read enough that complete record is safely included
             m = re.findall('([^\r\n]{9})\r',echo) # extract complete records from string reading, into a list of strings
             if m:
-                echo = bytearray(m[len(m)-1]) # return latest record
+                echo = bytearray(m[-1]) # return latest record
             else:
                 self.logger.warning('Unexpected record structure found: ' + echo)
                 return float("nan")
