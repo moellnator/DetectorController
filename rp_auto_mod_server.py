@@ -18,6 +18,7 @@ class ModuleServer:
         self.logger.info('Initializing IPv4/TCP server...')
         #write('Initializing IPv4/TCP server...\n')
         self._init_server(port)
+        self.DoRun = True # indicates graceful shutdown to worker thread 
         start_new_thread(self._wkr_server, ()) 
         self.logger.info('Successfully initialized server')
         #write('<DONE>\n')
@@ -50,11 +51,15 @@ class ModuleServer:
                 conn.close()
                 self.logger.debug('Closing connection to ' + str(addr))
             except Exception as err:    # when rp_auto_ctrl finishes, this thread will try to still use _sock -- catch that
-                self.logger.warning('Terminating thread because of an error: ' + str(err))
+                if not self.DoRun:
+                    self.logger.debug('Terminating listener thread')
+                else:
+                    self.logger.warning('Terminating listener thread because of an error: ' + str(err))
                 break
-
+    
     def _on_exit( self ):
         self.logger.debug('Closing IPv4/TCP port [' + str(self._sock.getsockname()[1]) + ']')
+        self.DoRun = False
         try:
             self._sock.shutdown(socket.SHUT_RDWR) 
         except Exception as err:
