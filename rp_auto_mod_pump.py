@@ -82,7 +82,7 @@ class ModulePump:
         self.logger.debug('Checking device...')
         #write( '   Checking device... ' )
         retval = self._send_cmd('i')
-        if len(retval)<5 or not retval[5] == 'Ready': raise NameError('Unknown device connected!')
+        if len(retval)<5 or not retval[5] == 'Ready': raise Exception('Unknown device connected!')
         self.logger.debug('Received answer <' + retval[1][9:] + '>')
         self.logger.debug('Device check complete')
         #write( '<' + retval[1][9:] + '>' )
@@ -92,7 +92,7 @@ class ModulePump:
         self.logger.info('Start pumping LN2...')
         #write('### Start pumping LN2... ') 
         retval = self._send_cmd('pon')
-        if not retval[2] == 'Ready': raise NameError('Unable to start LN2 pump!')
+        if not retval[2] == 'Ready': raise Exception('Unable to start LN2 pump!')
         self.logger.info('Pump successfully started')
         #write( '<DONE>\n' )
 
@@ -100,7 +100,7 @@ class ModulePump:
         self.logger.info('Stop pumping LN2')
         #write('### Stopping pumping LN2... ') 
         retval = self._send_cmd('pof')
-        if not retval[2] == 'Ready': raise NameError('Unable to stop LN2 pump!')
+        if not retval[2] == 'Ready': raise Exception('Unable to stop LN2 pump!')
         self.logger.info('Pump successfully stopped')
         #write( '<DONE>\n' )
 
@@ -108,7 +108,7 @@ class ModulePump:
         self.logger.debug('Getting pump status...')
         retval = self._send_cmd('rm 114')
         self.logger.debug('Received <' + retval[1] + '>')
-        if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
+        if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
         return retval[1] == '01'
     
     def GetPumpLevel( self ):
@@ -116,7 +116,7 @@ class ModulePump:
         try: 
             retval = self._send_cmd('rm 0ce 1')
             self.logger.debug('Received <' + retval[1] + '>')
-            if not retval[2] == 'Ready': raise NameError('Unable to contact LN2 pump!')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
             level = (int(retval[1], 16) - 38)*0.542888/0.808    # 38 is a fixed offset, taken from the pump EEprom
             self.logger.debug('Converted value to ' + str(level))
             return level

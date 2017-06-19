@@ -50,7 +50,7 @@ class ModuleScale:
             time.sleep(0.5)
             echo = []
             while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
-            if len(echo) != 1: raise NameError('Unable to read value!')
+            if len(echo) != 1: raise ValueError('Unable to read value!')
             retval = echo[0]
             self.logger.debug('Received <' + retval + '>')
             #write(retval)

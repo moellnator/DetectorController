@@ -55,7 +55,7 @@ class ModuleModem:
     def _send_cmd_ret( self, str ):
         echo = self._send_cmd(str)
         if len(echo) <= 1:
-            raise NameError('Invalid return value!')
+            raise ValueError('Invalid return value!')
         return echo[1]
         
     def _check_device( self ):
@@ -69,7 +69,7 @@ class ModuleModem:
             #write('<DONE>\n')
             return True
         else:
-            raise NameError('Connected device is unknown / connection error!')
+            raise Exception('Connected device is unknown / connection error!')
     
     def _check_pin( self, pin ):
         self.logger.debug('Checking SIM PIN...')
@@ -87,13 +87,13 @@ class ModuleModem:
             retval = self._send_cmd_ret('+CPIN=' + pin)
             self.logger.debug('Using PIN ' + retval)
             #write('<' +  retval + '>')
-            if retval == "ERROR": raise NameError('** Invalid PIN!')
+            if retval == "ERROR": raise Exception('** Invalid PIN!')
             time.sleep(10)
             self.logger.debug('Complete')
             #write('<DONE>\n')
             return True
         else:
-            raise NameError('** SIM card is protected by PUK!')
+            raise Exception('** SIM card is protected by PUK!')
             
     def _check_network( self ):
         self.logger.debug('Checking network registration...')
@@ -108,7 +108,7 @@ class ModuleModem:
             #write("<ROAMING><DONE>\n")
             return True
         else:
-            raise NameError('** Unknown network registration state!')
+            raise Exception('** Unknown network registration state!')
     
     def SendSMS( self, address, msg ):
         if ',' in address:            # \ch: implement recursive call to allow comma-separated list of recipients
