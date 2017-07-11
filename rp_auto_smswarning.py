@@ -29,7 +29,7 @@ class SmsWarning:
     
         while True:
             if self.IsIssued(): # warning is marked as "active"...
-                if (date.datetime.now() - self.last_issued).total_seconds() >= self.release:    # ... but has not been encountered for self.release seconds
+                if (datetime.datetime.now() - self.last_issued).total_seconds() >= self.release:    # ... but has not been encountered for self.release seconds
                     self.Resolve()
             time.sleep(10)  # \ch: need some time here to avoid hogging resources, but not too long w.r.t. self.release
 
