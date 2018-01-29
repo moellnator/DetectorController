@@ -125,6 +125,12 @@ class ModulePump:
             return float("nan")
     
     def _on_exit( self ):
+        # try shutting down the pump if it's still running when the handler terminates
+        try:
+            if self.GetPumpState():
+                self.StopPump()
+        except Exception:
+            pass
         self.logger.debug('Closing port [/dev/' + self.__tty + ']')
         #write( '** Closing port [' + self.__tty + ']\n' )
         try:
