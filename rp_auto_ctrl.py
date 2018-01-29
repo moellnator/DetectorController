@@ -60,6 +60,7 @@ class _runtime:
         # initialize some other stuff
         self.docleanexit = False   # is queried to determine whether shutdown is intentional (i.e. user-initiated). Else, logopts["address"] is notified
         self.modem.RegisterExitCallback(self._sms_exitcallback)
+        
         try:
             self.pollinterval = float(self.runparams["pollinterval"])
             if self.pollinterval<1.0:
@@ -85,48 +86,86 @@ class _runtime:
         self.lastcheck = datetime.datetime.now()
         self.logger.info('LN2 control started')
         polltime = self.pollinterval
+        loopfails = 0   # counts number of consecutive failed loop passes
         while True:
-            # \ch: offer a way to gracefully shut the program down
-            if os.path.isfile(self.runparams["quitfile"]):
-                self.logger.info('Shutdown indicator file ' + self.runparams["quitfile"] + ' found, terminating...')
-                self.docleanexit = True
-                os.rename(self.runparams["quitfile"], self.runparams["quitfile"] + '_bak') # rename indicator file
-                break
-            self.value_mmeter = self.mmeter.GetValue()
-            self.value_scale = self.scale.GetValue()
-            self.value_pump = self.pump.GetPumpState()
-            self.level_pump = self.pump.GetPumpLevel()
-            # toggle pump if necessary
-            if self.value_scale <= float(self.runparams["minweight"]):
-                if not self.value_pump:
-                    if self.level_pump>0:
-                        self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
-                        try:
-                            self.pump.StartPump()
-                        except Exception as err:
-                            self.logger.warning('Unable to start pump: ' + str(err))
-                            self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
-                        self.lastcheck = datetime.datetime.now()
-                        polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
+            try:
+                # offer a way to gracefully shut the program down
+                if os.path.isfile(self.runparams["quitfile"]):
+                    self.logger.info('Shutdown indicator file ' + self.runparams["quitfile"] + ' found, terminating...')
+                    self.docleanexit = True
+                    os.rename(self.runparams["quitfile"], self.runparams["quitfile"] + '_bak') # rename indicator file
+                    break
                     
-                        self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
-                        ': Scale value is ' + str(self.value_scale) + \
-                        ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
-                        ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
-                        ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send notification
-                    else:
-                        self.WarnPumpNoLN2.Emit('Unable to start pump because dewar is empty')
-            elif self.value_scale >= float(self.runparams["maxweight"]):
-                if self.value_pump:
-                    self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
-                    self.pump.StopPump()
-                    polltime = self.pollinterval # reset polltime
-                    self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
-            # check getter pump voltage
-            if abs(self.value_mmeter)>float(self.runparams["maxgettervolt"]):
-                self.logger.warning('Getter pump voltage above maximum level (' + self.runparams["maxgettervolt"] + '): ' + str(self.value_mmeter))
-                self.WarnGetterV.Emit('Excessive getter pump voltage, is ' + str(self.value_mmeter) + ', should be less than ' + self.runparams["maxgettervolt"])
-
+                # check whether pump was shut down from aside, i.e. the program has a different on/off state stored than what is current
+                if self.value_pump != self.pump.GetPumpState():
+                    self.logger.warning('Inconsistent pump state detected: should be {}, is {}'.format(self.value_pump, not self.value_pump))
+                    self.modem.SendSMS(self.logopts['address'], 
+                                       'Inconsistent pump state detected: should be {}, is {}.{}'.format(self.value_pump,
+                                                                                                         not self.value_pump,
+                                                                                                         " Shutting down." if self.value_pump else ""
+                                                                                                        )
+                                      )
+                    if self.value_pump:
+                        # pump was shut OFF from aside, so value_pump is still true despite the pump being turned off
+                        self.logger.info("Pump was shut down, terminating...")
+                        self.docleanexit = True
+                        break
+                
+                # update the stored system state
+                self.value_mmeter = self.mmeter.GetValue()
+                self.value_scale = self.scale.GetValue()
+                self.value_pump = self.pump.GetPumpState()
+                self.level_pump = self.pump.GetPumpLevel()
+                
+                # toggle pump if necessary
+                if self.value_scale <= float(self.runparams["minweight"]):
+                    # start the pump if it's not yet running
+                    if not self.value_pump:
+                        if self.level_pump>0:
+                            self.logger.info('Lower boundary crossing (' + str(self.value_scale) + ') detected, attempting to start pump')
+                            try:
+                                self.pump.StartPump()
+                            except Exception as err:
+                                self.logger.warning('Unable to start pump: ' + str(err))
+                                self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
+                            self.lastcheck = datetime.datetime.now()
+                            polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
+                        
+                            self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + \
+                            ': Scale value is ' + str(self.value_scale) + \
+                            ' kg, starting LN2 pump. Dewar level is ' + "{:.1f}".format(self.level_pump) + \
+                            ' cm, so about ' +  "{:.1f}".format(self.level_pump*self.lnlevel2fillings) + \
+                            ' LN2 fillings remaining. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)    # send notification
+                        else:
+                            self.WarnPumpNoLN2.Emit('Unable to start pump because dewar is empty')
+                elif self.value_scale >= float(self.runparams["maxweight"]):
+                    # stop the pump if it's still running
+                    if self.value_pump:
+                        self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
+                        self.pump.StopPump()
+                        polltime = self.pollinterval # reset polltime
+                        self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
+                
+                # check getter pump voltage
+                if abs(self.value_mmeter)>float(self.runparams["maxgettervolt"]):
+                    self.logger.warning('Getter pump voltage above maximum level (' + self.runparams["maxgettervolt"] + '): ' + str(self.value_mmeter))
+                    self.WarnGetterV.Emit('Excessive getter pump voltage, is ' + str(self.value_mmeter) + ', should be less than ' + self.runparams["maxgettervolt"])
+                
+            except Exception as err:
+                loopfails += 1
+                self.logger.warning("System polling failed for the {}th time: {}".format(loopfails, str(err)))
+            else:
+                # reset fail counter once a loop goes through
+                loopfails = 0
+            
+            # if polling the state fails unexpectedly too often, shut the whole system down
+            if loopfails >= self.runparams["maxpollfails"]:
+                self.logger.warning("System polling failed too often, shutting down")
+                self.modem.SendSMS(self.logopts['address'], 'System polling failed {} times, shutting down'.format(loopfails))
+                self.docleanexit = True
+                break
+            
+            # go to sleep to avoid log spamming
             time.sleep(polltime)
 
     def _gather_data( self ):
