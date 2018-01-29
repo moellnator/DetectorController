@@ -85,6 +85,7 @@ class _runtime:
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
         self.logger.info('LN2 control started')
+        self.value_pump = False     # needs to be initialized here so the external shutdown detection works
         polltime = self.pollinterval
         loopfails = 0   # counts number of consecutive failed loop passes
         while True:
@@ -128,6 +129,8 @@ class _runtime:
                             except Exception as err:
                                 self.logger.warning('Unable to start pump: ' + str(err))
                                 self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
+                            else:
+                                self.value_pump = True  # so the external shutdown can be detected
                             self.lastcheck = datetime.datetime.now()
                             polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                         
@@ -143,6 +146,7 @@ class _runtime:
                     if self.value_pump:
                         self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                         self.pump.StopPump()
+                        self.value_pump = False  # so the external shutdown can be detected
                         polltime = self.pollinterval # reset polltime
                         self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
                 
