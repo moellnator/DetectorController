@@ -52,10 +52,11 @@ class ModuleScale:
             while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
             if len(echo) != 1: raise ValueError('Unable to read value!')
             retval = echo[0]
+            # retval may be something like '-     125892.36     kg', with no fixed positions of the individual components. Unit may also be missing
             self.logger.debug('Received <' + retval + '>')
             #write(retval)
-            if ' ' in retval: retval = retval[0:(retval.rfind(' '))]
-            if retval.replace(' ', '' ) == '-': retval = echo[0]
+            if ' ' in retval: retval = retval[0:(retval.rfind(' '))]    # cuts the final part of the string -- the unit, or the value if the unit is missing, see below
+            if retval.replace(' ', '' ) == '-': retval = echo[0]    # instead of the unit, the value was thrown away. Revert to the originally-returned value
             retval = retval.replace(' ', '')
             self.logger.debug('Converted value to ' + retval)
             #write('<' + retval + '>')

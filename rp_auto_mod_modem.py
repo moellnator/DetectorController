@@ -56,7 +56,7 @@ class ModuleModem:
         echo = self._send_cmd(str)
         if len(echo) <= 1:
             raise ValueError('Invalid return value!')
-        return echo[1]
+        return echo[1]  # \ch: "1" bc. modem returns command in echo[0]?
         
     def _check_device( self ):
         self.logger.debug('Checking connected device...')
@@ -128,7 +128,12 @@ class ModuleModem:
             self._prt.write(msg + chr(26))
             time.sleep(0.2)
             self._prt.readline() 
-            while self._prt.inWaiting() == 0: time.sleep(0.01)
+            loopctr = 0
+            while self._prt.inWaiting() == 0:
+                time.sleep(0.01)  
+                loopctr += 1    # prevent infinite loop
+                if loopctr>3000:
+                    raise Exception('Timeout waiting for response')
             retval = []
             time.sleep(0.2)
             while self._prt.inWaiting() > 0: retval.append(self._prt.readline().strip())
