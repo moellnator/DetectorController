@@ -92,7 +92,6 @@ class _runtime:
                 self.docleanexit = True
                 os.rename(self.runparams["quitfile"], self.runparams["quitfile"] + '_bak') # rename indicator file
                 break
-            # query state of the system
             self.value_mmeter = self.mmeter.GetValue()
             self.value_scale = self.scale.GetValue()
             self.value_pump = self.pump.GetPumpState()
