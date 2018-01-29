@@ -85,7 +85,7 @@ class _runtime:
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
         self.logger.info('LN2 control started')
-        self.value_pump = False     # needs to be initialized here so the external shutdown detection works
+        self.value_pump = self.pump.GetPumpState()     # needs to be initialized here so the external shutdown detection works
         polltime = self.pollinterval
         loopfails = 0   # counts number of consecutive failed loop passes
         while True:
