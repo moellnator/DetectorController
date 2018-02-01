@@ -14,14 +14,11 @@ class ModuleScale:
     def __init__( self, port ):
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing KERN scale...')
-        #write('Initializing KERN scale:\n')
         self._prt = self._open_port('/dev/' + port)
         self.logger.info('Scale initialization complete')
-        #write('<DONE>\n')
 
     def _open_port( self, tty ):
         self.logger.debug('Opening port ' + tty)
-        #write( '   Opening port [' + tty + ']... ' )
         retval = serial.Serial( 
             port = tty,
             baudrate = 9600,
@@ -37,13 +34,10 @@ class ModuleScale:
         while retval.inWaiting() > 0: retval.read(self._prt.inWaiting())
         atexit.register(self._on_exit)
         self.logger.debug('Successfully opened port')
-        #write( '<DONE>\n' )    
         return retval
 
     def GetValue( self ):
         self.logger.debug('Getting value from scale...')
-        #write('### ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + '# Getting value from scale... ') 
-        #sys.stdout.flush()    # \ch: force update of output buffer, otherwise teed log isn't displayed simultaneously
         try:
             cmd = 'w'
             self._prt.write(cmd)
@@ -53,13 +47,10 @@ class ModuleScale:
             if len(echo) != 1: raise ValueError('Unable to read value!')
             retval = echo[0]
             self.logger.debug('Received <' + retval + '>')
-            #write(retval)
             if ' ' in retval: retval = retval[0:(retval.rfind(' '))]
             if retval.replace(' ', '' ) == '-': retval = echo[0]
             retval = retval.replace(' ', '')
             self.logger.debug('Converted value to ' + retval)
-            #write('<' + retval + '>')
-            #write('<DONE>\n')
             return float(retval)
         except Exception as err:
             self.logger.warning('Error getting value from scale: ' + str(err))
@@ -67,5 +58,4 @@ class ModuleScale:
         
     def _on_exit( self ):
         self.logger.debug('Closing port [' + self._prt.port + ']')
-        #write( '** Closing port [' + self._prt.port + ']\n' ) 
         self._prt.close()

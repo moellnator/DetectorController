@@ -30,7 +30,7 @@ class _runtime:
     def __init__( self ):
         # get config options from file
         self.config = _config('rp_auto_setup')
-        # \ch: set up the logging system before everything else, so stuff can log its initialization
+        # set up the logging system before everything else, so stuff can log its initialization
         self.logopts = self.config.GetSetup('logging')
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.setLevel(logging.DEBUG)
@@ -38,11 +38,11 @@ class _runtime:
         logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=int(self.logopts['keeplogs']))   # \ch: output to log file, new file is created for every day, files are retained for 31 days
         logFileHandler.setFormatter(logFormatter)
         self.logger.addHandler(logFileHandler)
-        logStreamHandler = logging.StreamHandler(sys.stdout)   # \ch: also output log to stdout
+        logStreamHandler = logging.StreamHandler(sys.stdout)   # also output log to stdout
         logStreamHandler.setFormatter(logFormatter)
-        logStreamHandler.setLevel(logging.INFO) # \ch: don't print debug info to stdout
+        logStreamHandler.setLevel(logging.INFO) # don't print debug info to stdout
         self.logger.addHandler(logStreamHandler)
-        # \ ch set up the actual components
+        # set up the actual components
         self.modem = ModuleModem(**self.config.GetSetup('modem'))
         self.scale = ModuleScale(**self.config.GetSetup('scale'))
         self.pump = ModulePump(**self.config.GetSetup('pump'))

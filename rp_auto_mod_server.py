@@ -16,22 +16,18 @@ class ModuleServer:
     def __init__( self, port ):
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing IPv4/TCP server...')
-        #write('Initializing IPv4/TCP server...\n')
         self._init_server(port)
         self.DoRun = True # indicates graceful shutdown to worker thread 
         start_new_thread(self._wkr_server, ()) 
         self.logger.info('Successfully initialized server')
-        #write('<DONE>\n')
     
     def _init_server( self, port ):
         self.logger.debug('Opening IPv4/TCP port [' + port + ']...')
-        #write('   Opening IPv4/TCP port [' + port + ']...')
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.bind(('', int(port)))
         self._sock.listen(1)
         atexit.register(self._on_exit)
         self.logger.debug('Successfully opened port')
-        #write('<DONE>\n')
         
     def _wkr_server( self ):
         while True:
@@ -44,7 +40,6 @@ class ModuleServer:
                     conn.send('CNT:HELLO=RP_AUTO_SERVER_V1.0\r\n')
                 elif data == 'SVR:DATA':
                     self.logger.debug('Sending data entry to client... <' + str(addr) + '>')
-                    #write('** Sending logging entry to client... <' + str(addr) + '>\n')
                     conn.send('CNT:DATA=' + self.GatherModuleData())
                 else:
                     conn.send('CNT:ERROR=UNKNOWN_CMD\r\n')

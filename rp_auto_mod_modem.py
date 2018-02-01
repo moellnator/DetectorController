@@ -14,18 +14,15 @@ class ModuleModem:
     def __init__( self, port, pin ):
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing WAVECOM modem...')
-        #write('Initializing WAVECOM modem:\n')
         self._prt = self._open_port('/dev/' + port)
         self._check_device()
         self._check_pin(pin)
         self._check_network()
         self.exitcallback = None
         self.logger.info('WAVECOM modem initialization complete')
-        #write('<DONE>\n')
 
     def _open_port( self, tty ):
         self.logger.debug('Opening port [' + tty + ']... ')
-        #write( '   Opening port [' + tty + ']... ' )
         retval = serial.Serial( 
             port = tty,
             baudrate = 19200,
@@ -41,7 +38,6 @@ class ModuleModem:
         while retval.inWaiting() > 0: retval.read(self._prt.inWaiting())
         atexit.register( self._on_exit)
         self.logger.debug('Port ' + tty + ' opened')
-        #write( '<DONE>\n' )    
         return retval
 
     def _send_cmd( self, str ):
@@ -60,58 +56,46 @@ class ModuleModem:
         
     def _check_device( self ):
         self.logger.debug('Checking connected device...')
-        #write( '   Checking connected device... ' )
         retval = self._send_cmd_ret('+CGMI')
         self.logger.debug('Received response <' + retval + '>')
-        #write('<' + retval + '>')
         if retval == 'WAVECOM MODEM':
             self.logger.debug('Device recognized')
-            #write('<DONE>\n')
             return True
         else:
             raise Exception('Connected device is unknown / connection error!')
     
     def _check_pin( self, pin ):
         self.logger.debug('Checking SIM PIN...')
-        #write( '   Checking SIM PIN... ' )
         retval = self._send_cmd_ret('+CPIN?')
         self.logger.debug('Recieved response <' + retval + '>')
-        #write('<' + retval + '>')
         if retval == '+CPIN: READY':
             self.logger.debug('SIM PIN accepted')
-            #write('<DONE>\n')
             return True
         elif retval == '+CPIN: SIM PIN':
             self.logger.debug('Entering SIM PIN...')
-            #write( '\n      Entering SIM PIN... ' )
             retval = self._send_cmd_ret('+CPIN=' + pin)
             self.logger.debug('Using PIN ' + retval)
-            #write('<' +  retval + '>')
             if retval == "ERROR": raise Exception('** Invalid PIN!')
             time.sleep(10)
             self.logger.debug('Complete')
-            #write('<DONE>\n')
             return True
         else:
             raise Exception('** SIM card is protected by PUK!')
             
     def _check_network( self ):
         self.logger.debug('Checking network registration...')
-        #write( '   Checking network registration... ' )
         retval = self._send_cmd_ret('+CREG?')
         if retval == '+CREG: 0,1':
             self.logger.debug('LOCAL mode detected')
-            #write("<LOCAL><DONE>\n")
             return True
         elif retval == '+CREG: 0,5':
             self.logger.debug('ROAMING mode detected')
-            #write("<ROAMING><DONE>\n")
             return True
         else:
             raise Exception('** Unknown network registration state!')
     
     def SendSMS( self, address, msg ):
-        if ',' in address:            # \ch: implement recursive call to allow comma-separated list of recipients
+        if ',' in address:            # recursive call to allow comma-separated list of recipients
             addresslist = address.split(',')
             for x in addresslist: self.SendSMS(x, msg)
         else:
@@ -145,5 +129,4 @@ class ModuleModem:
     def _on_exit( self ):
         if self.exitcallback: self.exitcallback()
         self.logger.debug('Closing port [' + self._prt.port +']')
-        #write( '** Closing port [' + self._prt.port + ']\n' ) 
         self._prt.close()

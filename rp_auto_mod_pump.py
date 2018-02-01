@@ -16,7 +16,6 @@ class ModulePump:
     def __init__( self, tty ):
         self.logger = logging.getLogger('rp_auto_ctrl')
         self.logger.info('Initializing LN2 pump...')
-        #write('Initializing LN2 pump:\n')
         self.__tty = tty
         try:
             self._prt = self._open_port('/dev/' + tty, 'P') # try PySerial protocol first
@@ -32,10 +31,8 @@ class ModulePump:
             self._check_pump()
         finally:
             self.logger.info('Successfully initialized LN2 pump')
-        #write('<DONE>\n')
 
     def _open_port( self, tty, mode = 'P'):     # mode='P' for PySerial implementation, 'T' for TermIOS implementation
-        #write( '   Opening port [' + tty + ']... ' )
         if mode == 'T':     # termios implementation
             self.logger.debug('Opening port [' + tty + '] via TermIOS...')
             retval = os.open(tty, os.O_RDWR | os.O_NONBLOCK)
@@ -63,7 +60,6 @@ class ModulePump:
             
         atexit.register( self._on_exit)
         self.logger.debug('Port opened in ' + mode + ' mode')
-        #write( '<DONE>\n' )    
         return retval
 
     def _send_cmd( self, cmd ):
@@ -80,29 +76,22 @@ class ModulePump:
 
     def _check_pump( self ):
         self.logger.debug('Checking device...')
-        #write( '   Checking device... ' )
         retval = self._send_cmd('i')
         if len(retval)<5 or not retval[5] == 'Ready': raise Exception('Unknown device connected!')
         self.logger.debug('Received answer <' + retval[1][9:] + '>')
         self.logger.debug('Device check complete')
-        #write( '<' + retval[1][9:] + '>' )
-        #write( '<DONE>\n' )
 
     def StartPump( self ):
         self.logger.info('Start pumping LN2...')
-        #write('### Start pumping LN2... ') 
         retval = self._send_cmd('pon')
         if not retval[2] == 'Ready': raise Exception('Unable to start LN2 pump!')
         self.logger.info('Pump successfully started')
-        #write( '<DONE>\n' )
 
     def StopPump( self ):
         self.logger.info('Stop pumping LN2')
-        #write('### Stopping pumping LN2... ') 
         retval = self._send_cmd('pof')
         if not retval[2] == 'Ready': raise Exception('Unable to stop LN2 pump!')
         self.logger.info('Pump successfully stopped')
-        #write( '<DONE>\n' )
 
     def GetPumpState( self ):
         self.logger.debug('Getting pump status...')
@@ -132,7 +121,6 @@ class ModulePump:
         except Exception:
             pass
         self.logger.debug('Closing port [/dev/' + self.__tty + ']')
-        #write( '** Closing port [' + self.__tty + ']\n' )
         try:
             if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
                 self._prt.close()
