@@ -111,6 +111,8 @@ class _runtime:
                         self.logger.info("Pump was shut down, terminating...")
                         self.docleanexit = True
                         break
+                    else:
+                        polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                 
                 # update the stored system state
                 self.value_mmeter = self.mmeter.GetValue()
