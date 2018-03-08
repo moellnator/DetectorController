@@ -94,6 +94,7 @@ class ModulePump:
         self.logger.info('Pump successfully stopped')
 
     def GetPumpState( self ):
+        """Returns True if pump is running, False otherwise."""
         self.logger.debug('Getting pump status...')
         retval = self._send_cmd('rm 114')
         self.logger.debug('Received <' + retval[1] + '>')

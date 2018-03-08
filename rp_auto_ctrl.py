@@ -98,6 +98,9 @@ class _runtime:
                     break
                     
                 # check whether pump was shut down from aside, i.e. the program has a different on/off state stored than what is current
+                # need to make this the only time that PumpState is queried for each loop. If we do it again when checking all the other components,
+                # the pump state may have changed in the couple of seconds it takes the serial commands to complete. This change would then not be detected
+                # in the next loop because the stored value_pump is then already False
                 if self.value_pump != self.pump.GetPumpState():
                     self.logger.warning('Inconsistent pump state detected: should be {}, is {}'.format(self.value_pump, not self.value_pump))
                     self.modem.SendSMS(self.logopts['address'], 
@@ -112,12 +115,13 @@ class _runtime:
                         self.docleanexit = True
                         break
                     else:
+                        # pump was turned ON from aside, but value_pump is still false
+                        self.value_pump = not self.value_pump  # correct the stored state of the pump
                         polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                 
                 # update the stored system state
                 self.value_mmeter = self.mmeter.GetValue()
                 self.value_scale = self.scale.GetValue()
-                self.value_pump = self.pump.GetPumpState()
                 self.level_pump = self.pump.GetPumpLevel()
                 
                 # toggle pump if necessary
@@ -132,7 +136,7 @@ class _runtime:
                                 self.logger.warning('Unable to start pump: ' + str(err))
                                 self.WarnPumpStart.Emit('Could not start pump: ' + str(err))
                             else:
-                                self.value_pump = True  # so the external shutdown can be detected
+                                self.value_pump = True  # so the external turn-on detection is not triggered
                             self.lastcheck = datetime.datetime.now()
                             polltime = self.pollintwhilepumping # switch to (usually shorter) poll interval
                         
@@ -148,7 +152,7 @@ class _runtime:
                     if self.value_pump:
                         self.logger.info('Upper boundary crossing (' + str(self.value_scale) + ') detected, attempting to stop pump')
                         self.pump.StopPump()
-                        self.value_pump = False  # so the external shutdown can be detected
+                        self.value_pump = False  # so the external shutdown detection is not triggered
                         polltime = self.pollinterval # reset polltime
                         self.modem.SendSMS(self.logopts['address'],time.strftime("%Y-%m-%d %H:%M",time.gmtime()) + ': Scale value is ' + str(self.value_scale) + ' kg, stopping LN2 pump. Getter pump voltage is ' + str(self.value_mmeter) + ' ' + self.mmeter.OutUnit)
                 
