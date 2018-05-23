@@ -78,10 +78,11 @@ class _runtime:
             self.logger.warning('Could not set pump polling interval, setting it to ' +  "{:.1f}".format(self.pollinterval) + ' s: ' + str(err))
             self.pollintwhilepumping = self.pollinterval
         # set up sms warning objects
-        self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
-        self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
-        self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
-        self.WarnUser = SmsWarning("UserWarning", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
+        warn_interval = float(self.runparams['smswarninterval'])
+        warn_survive = float(self.runparams['smswarnsurvive'])
+        self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], warn_interval, warn_survive)
+        self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], warn_interval, warn_survive)
+        self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], warn_interval, warn_survive)
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
