@@ -7,7 +7,7 @@ import datetime
 from thread import start_new_thread
 
 class SmsWarning:
-
+    
     first_issued = 0 # keep track when warning was first encountered. If 0, warning is not currently active
     last_issued = 0 # is updated whenever the warning is encountered
     last_emit = 0 # is only updated when a notification message is sent
@@ -26,10 +26,16 @@ class SmsWarning:
         
 
     def _wkr_warning( self ):
-    
+        # \ch: looks like this thread is either terminated prematurely, or never sees changes made to the SmsWarning instance. May need to globalize first_issued etc
+        self.logger.debug('Starting background thread for SmsWarning {}'.format(self.name))
         while True:
             if self.IsIssued(): # warning is marked as "active"...
-                if (datetime.datetime.now() - self.last_issued).total_seconds() >= self.release:    # ... but has not been encountered for self.release seconds
+                self.logger.debug('Warning {} last issued on {}, so {} seconds ago. To be released after {} seconds'.format(self.name, 
+                                                                                                                            datetime.datetime.now(), 
+                                                                                                                            (datetime.datetime.now() - self.last_issued).total_seconds(), 
+                                                                                                                            self.release))
+                if abs(datetime.datetime.now() - self.last_issued).total_seconds() >= self.release:    # ... but has not been encountered for self.release seconds
+                    self.logger.debug('Resolve issued for warning {}'.format(self.name))
                     self.Resolve()
             time.sleep(10)  # need some time here to avoid hogging resources, but not too long w.r.t. self.release
 
@@ -42,9 +48,10 @@ class SmsWarning:
             is_first_issue = True
             self.first_issued = datetime.datetime.now()     # record current time in first_issued if this is the first time the warning is encountered
             
-        if is_first_issue or ((self.last_issued - self.last_emit).total_seconds() >= self.suppress):
+        if is_first_issue or (abs(self.last_issued - self.last_emit).total_seconds() >= self.suppress):
             self.modem.SendSMS(self.recipients, 'Warning <' + self.name + '> active since ' + self.first_issued.strftime("%Y-%m-%d %H:%M") + ': ' + message)
             self.last_emit = self.last_issued
+            self.logger.debug('Warning alert {} triggered on {}, is_first_issue is {}'.format(self.name,self.last_emit,is_first_issue))
         else:
             self.logger.debug('Suppressed warning <' + self.name + '>.')
             
@@ -53,6 +60,7 @@ class SmsWarning:
         self.logger.info('Warning <' + self.name + '> has been resolved: Condition passed')
         self.modem.SendSMS(self.recipients, 'Warning <' + self.name + '> has been resolved (active since ' + self.first_issued.strftime("%Y-%m-%d %H:%M") + ').')
         self.first_issued = 0
+        self.last_emit = 0 # \ch: for safety? -- shouldn't be necessary bc last_emit is overwritten once is_first_issue is detected in Emit()
        
     def IsIssued( self ):
     

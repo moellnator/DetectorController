@@ -191,6 +191,16 @@ def main( ):
     return 0
 
 def toHex(s):
+    """Converts bytestream to hexadecimal display.
+    
+    Useful for debugging the serial streams returned by some devices.
+    
+    Args:
+        s: The bytestream or character array to encode.
+        
+    Returns:
+        A string representing the list of hexadecimal codepoints, separated by whitespace.
+    """
     lst = []
     for ch in s:
         hv = hex(ord(ch)).replace('0x', '')
