@@ -81,6 +81,7 @@ class _runtime:
         self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
         self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
         self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
+        self.WarnUser = SmsWarning("UserWarning", self.modem, self.logopts['address'], self.runparams['smswarninterval'], self.runparams['smswarnsurvive'])
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()
@@ -96,6 +97,11 @@ class _runtime:
                     self.docleanexit = True
                     os.rename(self.runparams["quitfile"], self.runparams["quitfile"] + '_bak') # rename indicator file
                     break
+
+                # DEBUG: provoke the emission of a warning by creating a file
+                if os.path.isfile(self.runparams["provokefile"]):
+                    self.logger.info('Warning provokation file detected. Emitting...')
+                    self.WarnUser.Emit('This is a debug warning provoked by the user.')
                     
                 # check whether pump was shut down from aside, i.e. the program has a different on/off state stored than what is current
                 # need to make this the only time that PumpState is queried for each loop. If we do it again when checking all the other components,
