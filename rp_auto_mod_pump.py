@@ -114,6 +114,19 @@ class ModulePump:
             self.logger.warning('Error getting pump level: ' + str(err))
             return float("nan")
     
+    def GetSensorTemperature( self ):
+        self.logger.debug('Getting pump sensor temperature...')
+        try:
+            retval = self._send_cmd('rm 084 2')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
+            temp = (int(''.join(reversed(retval[1].split())), 16)-145)   # 145 is a fixed offset, taken from the pump EEprom. reversed() acrobatics needed because retval is big-endian
+            self.logger.debug('Converted value to ' + str(temp))
+            return temp
+        except Exception as err:
+            self.logger.warning('Error getting pump sensor temperature: ' + str(err))
+            return float("nan")
+    
     def _on_exit( self ):
         # try shutting down the pump if it's still running when the handler terminates
         try:
