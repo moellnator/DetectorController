@@ -208,14 +208,15 @@ def toHex(s):
     Returns:
         A string representing the list of hexadecimal codepoints, separated by whitespace.
     """
-    lst = []
-    for ch in s:
-        hv = hex(ord(ch)).replace('0x', '')
-        if len(hv) == 1:
-            hv = '0'+hv
-        lst.append(hv)
-    
-    return reduce(lambda x,y:x+' ' +y, lst)
+    return " ".join(format(ord(ch), '02x') for ch in s)
+    # lst = []
+    # for ch in s:
+    #     hv = hex(ord(ch)).replace('0x', '')
+    #     if len(hv) == 1:
+    #         hv = '0'+hv
+    #     lst.append(hv)
+    # 
+    # return reduce(lambda x,y:x+' ' +y, lst)
 
 
 if __name__ == "__main__":
