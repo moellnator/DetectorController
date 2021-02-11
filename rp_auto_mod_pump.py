@@ -31,6 +31,7 @@ class ModulePump:
             self._check_pump()
         finally:
             self.logger.info('Successfully initialized LN2 pump')
+            self._querySensorOffsets()
 
     def _open_port( self, tty, mode = 'P'):     # mode='P' for PySerial implementation, 'T' for TermIOS implementation
         if mode == 'T':     # termios implementation
@@ -80,6 +81,29 @@ class ModulePump:
         if len(retval)<5 or not retval[5] == 'Ready': raise Exception('Unknown device connected!')
         self.logger.debug('Received answer <' + retval[1][9:] + '>')
         self.logger.debug('Device check complete')
+        
+    def _querySensorOffsets( self ):
+        self.logger.debug('Getting temperature sensor offsets...')
+        # first, the "main" sensor at the pump inlet
+        try:
+            retval = self._send_cmd('re 014 2')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
+            self.pumpsensoroffset = (int(''.join(reversed(retval[1].split())), 16))   # reversed() acrobatics needed because retval is big-endian
+            self.logger.debug('Converted value to ' + str(self.pumpsensoroffset))
+        except Exception as err:
+            self.logger.warning('Error getting pump sensor offset: ' + str(err))
+            self.pumpsensoroffset = 145   # use a value that was previously observed
+        # second, the "auxiliary" sensor, e.g positioned at the tube outlet
+        try:
+            retval = self._send_cmd('re 016 2')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
+            self.auxsensoroffset = (int(''.join(reversed(retval[1].split())), 16))   # reversed() acrobatics needed because retval is big-endian
+            self.logger.debug('Converted value to ' + str(self.pumpsensoroffset))
+        except Exception as err:
+            self.logger.warning('Error getting auxiliary sensor offset: ' + str(err))
+            self.auxsensoroffset = 145   # use a value that was previously observed
 
     def StartPump( self ):
         self.logger.info('Start pumping LN2...')
@@ -114,17 +138,30 @@ class ModulePump:
             self.logger.warning('Error getting pump level: ' + str(err))
             return float("nan")
     
-    def GetSensorTemperature( self ):
+    def GetPumpSensorTemperature( self ):
         self.logger.debug('Getting pump sensor temperature...')
         try:
             retval = self._send_cmd('rm 084 2')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
-            temp = (int(''.join(reversed(retval[1].split())), 16)-145)   # 145 is a fixed offset, taken from the pump EEprom. reversed() acrobatics needed because retval is big-endian
+            temp = (int(''.join(reversed(retval[1].split())), 16)-self.pumpsensoroffset)   # reversed() acrobatics needed because retval is big-endian
             self.logger.debug('Converted value to ' + str(temp))
             return temp
         except Exception as err:
             self.logger.warning('Error getting pump sensor temperature: ' + str(err))
+            return float("nan")
+        
+    def GetAuxSensorTemperature( self ):
+        self.logger.debug('Getting auxiliary sensor temperature ...')
+        try:
+            retval = self._send_cmd('rm 086 2')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
+            temp = (int(''.join(reversed(retval[1].split())), 16)-self.auxsensoroffset)   # reversed() acrobatics needed because retval is big-endian
+            self.logger.debug('Converted value to ' + str(temp))
+            return temp
+        except Exception as err:
+            self.logger.warning('Error getting auxiliary sensor temperature: ' + str(err))
             return float("nan")
     
     def _on_exit( self ):
