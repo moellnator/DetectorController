@@ -1,9 +1,11 @@
 ﻿import atexit
 import time
 import sys
-import termios
 import os
-import serial
+try:
+    import serial
+except ModuleNotFoundError:
+    import termios
 import logging
 
 def write( str ):
@@ -13,8 +15,8 @@ class ModulePump:
     
     _prt = None
     
-    def __init__( self, tty ):
-        self.logger = logging.getLogger('rp_auto_ctrl')
+    def __init__( self, tty, loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl')
         self.logger.info('Initializing LN2 pump...')
         self.__tty = tty
         try:
@@ -56,7 +58,7 @@ class ModulePump:
                 rtscts = False,
                 dsrdtr = False
             )
-            if not retval.isOpen: retval.open()
+            if not retval.isOpen(): retval.open()
             retval.flushInput() # purge input buffer, since device writes continuously to buffer
             
         atexit.register( self._on_exit)
@@ -64,6 +66,8 @@ class ModulePump:
         return retval
 
     def _send_cmd( self, cmd ):
+        if isinstance(cmd, str):
+            cmd = cmd.encode('utf-8')  # make sure cmd is byte array
         if type(self._prt) is serial.serialposix.Serial:  # pyserial implementation
             self._prt.write(cmd)
             time.sleep(0.4)
@@ -83,10 +87,10 @@ class ModulePump:
         self.logger.debug('Device check complete')
         
     def _querySensorOffsets( self ):
-        self.logger.debug('Getting temperature sensor offsets...')
+        self.logger.debug('Getting sensor offsets...')
         # first, the "main" sensor at the pump inlet
         try:
-            retval = self._send_cmd('re 014 2')
+            retval = self._send_cmd('re 016 2')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
             self.pumpsensoroffset = (int(''.join(reversed(retval[1].split())), 16))   # reversed() acrobatics needed because retval is big-endian
@@ -96,14 +100,24 @@ class ModulePump:
             self.pumpsensoroffset = 145   # use a value that was previously observed
         # second, the "auxiliary" sensor, e.g positioned at the tube outlet
         try:
-            retval = self._send_cmd('re 016 2')
+            retval = self._send_cmd('re 014 2')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
             self.auxsensoroffset = (int(''.join(reversed(retval[1].split())), 16))   # reversed() acrobatics needed because retval is big-endian
-            self.logger.debug('Converted value to ' + str(self.pumpsensoroffset))
+            self.logger.debug('Converted value to ' + str(self.auxsensoroffset))
         except Exception as err:
             self.logger.warning('Error getting auxiliary sensor offset: ' + str(err))
             self.auxsensoroffset = 145   # use a value that was previously observed
+        # third, the level sensor
+        try:
+            retval = self._send_cmd('re 01c 2')
+            self.logger.debug('Received <' + retval[1] + '>')
+            if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
+            self.levelsensoroffset = (int(''.join(reversed(retval[1].split())), 16))   # reversed() acrobatics needed because retval is big-endian
+            self.logger.debug('Converted value to ' + str(self.levelsensoroffset))
+        except Exception as err:
+            self.logger.warning('Error getting level sensor offset: ' + str(err))
+            self.levelsensoroffset = 38   # use a value that was previously observed
 
     def StartPump( self ):
         self.logger.info('Start pumping LN2...')
@@ -131,7 +145,7 @@ class ModulePump:
             retval = self._send_cmd('rm 0ce 1')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
-            level = (int(retval[1], 16) - 38)*0.542888/0.808    # 38 is a fixed offset, taken from the pump EEprom
+            level = (int(retval[1], 16) - self.levelsensoroffset)*0.542888/0.808   
             self.logger.debug('Converted value to ' + str(level))
             return level
         except Exception as err:
@@ -141,7 +155,7 @@ class ModulePump:
     def GetPumpSensorTemperature( self ):
         self.logger.debug('Getting pump sensor temperature...')
         try:
-            retval = self._send_cmd('rm 084 2')
+            retval = self._send_cmd('rm 086 2')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
             temp = (int(''.join(reversed(retval[1].split())), 16)-self.pumpsensoroffset)   # reversed() acrobatics needed because retval is big-endian
@@ -154,7 +168,7 @@ class ModulePump:
     def GetAuxSensorTemperature( self ):
         self.logger.debug('Getting auxiliary sensor temperature ...')
         try:
-            retval = self._send_cmd('rm 086 2')
+            retval = self._send_cmd('rm 084 2')
             self.logger.debug('Received <' + retval[1] + '>')
             if not retval[2] == 'Ready': raise Exception('Unable to contact LN2 pump!')
             temp = (int(''.join(reversed(retval[1].split())), 16)-self.auxsensoroffset)   # reversed() acrobatics needed because retval is big-endian

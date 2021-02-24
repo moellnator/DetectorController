@@ -32,7 +32,7 @@ class _runtime:
         self.config = _config('rp_auto_setup')
         # set up the logging system before everything else, so stuff can log its initialization
         self.logopts = self.config.GetSetup('logging')
-        self.logger = logging.getLogger('rp_auto_ctrl')
+        self.logger = logging.getLogger(self.logopts["loggername"] or 'rp_auto_ctrl')
         self.logger.setLevel(logging.DEBUG)
         logFormatter = logging.Formatter("%(asctime)s %(levelname)-5.5s: [%(module)-18.18s] %(message)s",datefmt="%Y-%m-%d %H:%M:%S")
         logFileHandler = logging.handlers.TimedRotatingFileHandler(self.logopts['logfile'], when='midnight', backupCount=int(self.logopts['keeplogs']))   # \ch: output to log file, new file is created for every day, files are retained for 31 days
@@ -43,11 +43,11 @@ class _runtime:
         logStreamHandler.setLevel(logging.INFO) # don't print debug info to stdout
         self.logger.addHandler(logStreamHandler)
         # set up the actual components
-        self.modem = ModuleModem(**self.config.GetSetup('modem'))
-        self.scale = ModuleScale(**self.config.GetSetup('scale'))
-        self.pump = ModulePump(**self.config.GetSetup('pump'))
-        self.server = ModuleServer(**self.config.GetSetup('server'))
-        self.mmeter = ModuleMMeter(**self.config.GetSetup('mmeter'))
+        self.modem = ModuleModem(**self.config.GetSetup('modem'), loggername = self.logger.name)
+        self.scale = ModuleScale(**self.config.GetSetup('scale'), loggername = self.logger.name)
+        self.pump = ModulePump(**self.config.GetSetup('pump'), loggername = self.logger.name)
+        self.server = ModuleServer(**self.config.GetSetup('server'), loggername = self.logger.name)
+        self.mmeter = ModuleMMeter(**self.config.GetSetup('mmeter'), loggername = self.logger.name)
         self.server.GatherModuleData = self._gather_data
         # get other parameters
         self.runparams = self.config.GetSetup('runparams')
@@ -80,9 +80,9 @@ class _runtime:
         # set up sms warning objects
         warn_interval = float(self.runparams['smswarninterval'])
         warn_survive = float(self.runparams['smswarnsurvive'])
-        self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], warn_interval, warn_survive)
-        self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], warn_interval, warn_survive)
-        self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], warn_interval, warn_survive)
+        self.WarnGetterV = SmsWarning("GetterpumpVTooHigh", self.modem, self.logopts['address'], warn_interval, warn_survive, loggername = self.logger.name)
+        self.WarnPumpStart = SmsWarning("PumpNotStarted", self.modem, self.logopts['address'], warn_interval, warn_survive, loggername = self.logger.name)
+        self.WarnPumpNoLN2 = SmsWarning("DewarEmpty", self.modem, self.logopts['address'], warn_interval, warn_survive, loggername = self.logger.name)
     
     def _run( self ):
         self.lastcheck = datetime.datetime.now()

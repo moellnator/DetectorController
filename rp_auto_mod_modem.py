@@ -11,8 +11,8 @@ class ModuleModem:
     
     _prt = None
     
-    def __init__( self, port, pin ):
-        self.logger = logging.getLogger('rp_auto_ctrl')
+    def __init__( self, port, pin, loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl') 
         self.logger.info('Initializing WAVECOM modem...')
         self._prt = self._open_port('/dev/' + port)
         self._check_device()
@@ -34,22 +34,22 @@ class ModuleModem:
             rtscts = True,
             dsrdtr = True
         )
-        if not retval.isOpen: retval.open()
+        if not retval.isOpen(): retval.open()
         while retval.inWaiting() > 0: retval.read(self._prt.inWaiting())
         atexit.register( self._on_exit)
         self.logger.debug('Port ' + tty + ' opened')
         return retval
 
-    def _send_cmd( self, str ):
-        cmd = 'AT' + str + '\r'
-        self._prt.write(cmd)
+    def _send_cmd( self, cmd ):
+        cmd = 'AT' + cmd + '\r'
+        self._prt.write(cmd.encode('utf-8'))
         time.sleep(0.5)
         echo = []
         while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())
         return echo
         
-    def _send_cmd_ret( self, str ):
-        echo = self._send_cmd(str)
+    def _send_cmd_ret( self, cmd ):
+        echo = self._send_cmd(cmd)
         if len(echo) <= 1:
             raise ValueError('Invalid return value!')
         return echo[1]

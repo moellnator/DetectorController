@@ -13,8 +13,8 @@ class ModuleServer:
     
     BUFFER_SIZE = 1024
 
-    def __init__( self, port ):
-        self.logger = logging.getLogger('rp_auto_ctrl')
+    def __init__( self, port, loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl')
         self.logger.info('Initializing IPv4/TCP server...')
         self._init_server(port)
         self.DoRun = True # indicates graceful shutdown to worker thread 
