@@ -11,8 +11,8 @@ class ModuleScale:
     
     _prt = None
     
-    def __init__( self, port ):
-        self.logger = logging.getLogger('rp_auto_ctrl')
+    def __init__( self, port, loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl')
         self.logger.info('Initializing KERN scale...')
         self._prt = self._open_port('/dev/' + port)
         self.logger.info('Scale initialization complete')
@@ -40,7 +40,7 @@ class ModuleScale:
         self.logger.debug('Getting value from scale...')
         try:
             cmd = 'w'
-            self._prt.write(cmd)
+            self._prt.write(cmd.encode('utf-8'))
             time.sleep(0.5)
             echo = []
             while self._prt.inWaiting() > 0: echo.append(self._prt.readline().strip())

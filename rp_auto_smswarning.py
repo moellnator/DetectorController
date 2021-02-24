@@ -12,9 +12,8 @@ class SmsWarning:
     last_issued = 0 # is updated whenever the warning is encountered
     last_emit = 0 # is only updated when a notification message is sent
 
-    def __init__( self, name, modem, recipients, time_suppress, time_resolve ):
-
-        self.logger = logging.getLogger('rp_auto_ctrl') # tie into the global rp_auto_ctrl logger
+    def __init__( self, name, modem, recipients, time_suppress, time_resolve, loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl')
         self.logger.info('Created issue tracker <' + name + '>.')
         self.name = name    # an identifier
         self.modem = modem    # the ModuleModem object

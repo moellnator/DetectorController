@@ -14,8 +14,8 @@ class ModuleMMeter:
     
     _prt = None
     
-    def __init__( self, port, outunit='V' ):
-        self.logger = logging.getLogger('rp_auto_ctrl')
+    def __init__( self, port, outunit='V', loggername = ""):
+        self.logger = logging.getLogger(loggername or 'rp_auto_ctrl')
         self.logger.info('Initializing multimeter...')
         self.__tty = port
         try:
@@ -57,7 +57,7 @@ class ModuleMMeter:
                 rtscts = False,
                 dsrdtr = False
             )
-            if not retval.isOpen: retval.open()
+            if not retval.isOpen(): retval.open()
             retval.flushInput() # purge input buffer, since device writes continuously to buffer
             
         atexit.register(self._on_exit)
